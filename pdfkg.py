@@ -5,6 +5,24 @@ import os
 from dotenv import load_dotenv
 load_dotenv()
 
+from langchain_community.graphs import Neo4jGraph
+from langchain_groq import ChatGroq
+ 
+from langchain_experimental.graph_transformers import LLMGraphTransformer
+from langchain_core.documents import Document
+
+os.environ["NEO4J_URI"]=os.getenv("NEO4J_URI")
+os.environ["NEO4J_USERNAME"]=os.getenv("NEO4J_USERNAME")
+os.environ["NEO4J_PASSWORD"]=os.getenv("NEO4J_PASSWORD")
+os.environ["Groq_api_key"] = os.getenv("GROQ_API_KEY")
+llm=ChatGroq(groq_api_key=Groq_api_key,model_name="Gemma-9b-it")
+
+def connect_to_neo():
+    graph=Neo4jGraph(
+    url=NEO4J_URI,
+    username=NEO4J_USERNAME,
+    password=NEO4J_PASSWORD,
+    )
 
 def get_pdf_text(pdf_docs):
     text=""
@@ -36,6 +54,10 @@ def main():
             with st.spinner("Processing..."):
                 raw_text = get_pdf_text(pdf_docs)
                 text_chunks = get_text_chunks(raw_text)
+                connect_to_neo()
+                documents=[Document(page_content=text_chunks)]
+                llm_transformer=LLMGraphTransformer(llm=llm)
+                graph_documents=llm_transformer.convert_to_graph_documents(documents)
                 #get_vector_store(text_chunks)
                 st.success("Done")
 
