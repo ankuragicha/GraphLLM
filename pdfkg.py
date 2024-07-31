@@ -60,7 +60,28 @@ def load_graph_documents_to_neo4j(graph_documents):
         for relationship in graph_documents[0].relationships:
             session.execute_write(create_relationship, relationship.source.id, relationship.type, relationship.target.id)
 
+def generate_cypher_query(question, llm):
+    # Use LLM to generate Cypher query based on the user question
+    response = llm({"text": question})
+    cypher_query = response.get('text', '').strip()  # Extract Cypher query from LLM response
+    return cypher_query
 
+def execute_cypher_query(cypher_query):
+    with driver.session() as session:
+        result = session.run(cypher_query)
+        return [record.data() for record in result]
+    
+def format_results(results):
+    # Format results into natural language
+    formatted_results = "\n".join([str(result) for result in results])
+    return formatted_results
+
+
+def user_input(question):
+    cypher_query = generate_cypher_query(question, llm)
+    results = execute_cypher_query(cypher_query)
+    formatted_results = format_results(results)
+    st.write(formatted_results)
 
 def main():
     st.set_page_config("Chat PDF")
@@ -79,7 +100,7 @@ def main():
                 raw_text = get_pdf_text(pdf_docs)
                 text_chunks = get_text_chunks(raw_text)
                 connect_to_neo()
-                documents=[Document(page_content=text_chunks)]
+                documents=[Document(page_content=chunk) for chunk in text_chunks]
                 llm_transformer=LLMGraphTransformer(llm=llm)
                 graph_documents=llm_transformer.convert_to_graph_documents(documents)
                 load_graph_documents_to_neo4j(graph_documents)
